@@ -13,21 +13,31 @@ import "hardhat/console.sol";
  *       3. End the auction. The bids are filled until there are no more tokens or no more bids.
  */
 
-
 contract TokenAuction {
 
+    /// The address owning the contract.
     address public owner;
+
+    /// The token being auctioned
     IERC20 public token;
+
+    /// The amount of tokens being auctioned.
     uint public amount;
+
+    /// The time when the auction starts.
     uint public auctionStart;
+
+    /// The time when the auction ends.
     uint public auctionEnd;
 
+    /// The array of the user bids. As new bids are added to it it's maintaied ordered in ascending bid price order.
     Bid[] public bids;
+
 
     /**
      * @title Represents a bid by a user.
      * @dev includes the addess of the bidder,
-     *      the timestamp of the block when the bid was submitted,
+     *      the timestamp of the block when the bid was received,
      *      an mount of tokens at the specified price.
      */
     struct Bid {
@@ -48,7 +58,8 @@ contract TokenAuction {
 
 
     /**
-     *  @param _token the address of the ERC20 token being auctioned
+     *  @param _token the address of the ERC20 token being auctioned.
+     *  @dev the deployer is the owner of the contract.
      */
     constructor(address _token) {
         owner = msg.sender;
@@ -86,6 +97,7 @@ contract TokenAuction {
      */
     function bid(uint _amount, uint _price) external notTheOwner auctionInProgress {
 
+        // append the new bid to the bid array
         bids.push(
             Bid({
                     bidder: msg.sender,
@@ -96,10 +108,9 @@ contract TokenAuction {
             )
         );
 
-        // To preserve the bid array in ascending price order,
-        // swap the new bid with the previous one until the new bid is in the correct position
+        // To keep the bid array in ascending price order,
+        // we swap the new bid with the previous ones until the new bid is in the correct position
         for(uint i = bids.length - 1; i > 0 && bids[i].price <= bids[i - 1].price; i--) {
-            // Swap bids[i] and bids[i - 1]
             Bid memory temp = bids[i];
             bids[i] = bids[i - 1];
             bids[i - 1] = temp;
@@ -125,7 +136,8 @@ contract TokenAuction {
                 amount -= amountFilled;
 
                 // transfer tokens
-                token.transfer(abid.bidder, amountFilled);
+                bool transferred = token.transfer(abid.bidder, amountFilled);
+                assert(transferred);
 
                 // end processing bids when all tokens have been transferred
                 // or all bids have been processed
@@ -137,13 +149,10 @@ contract TokenAuction {
     }
 
 
-    /**
-     * @notice Returns the array of all bids sorted in ascending price order.
-     */
+    /// @notice Returns the array of all bids sorted in ascending price order.
     function getAllBids() external view returns (Bid[] memory) {
         return bids;
     }
-
 
     /// @notice Requires that the function is called by the contract owner.
     modifier onlyOwner() {
@@ -176,6 +185,5 @@ contract TokenAuction {
         require(block.timestamp >= auctionEnd, "TokenAuction: auction in progress");
         _;
     }
-
 
 }
