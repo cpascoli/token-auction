@@ -35,7 +35,6 @@ contract TokenAuction {
         uint timestamp;
         uint amount;
         uint price;
-        uint filled;
     }
 
     /// @notice Logged when the token auction is started
@@ -47,8 +46,6 @@ contract TokenAuction {
     /// @notice Logged when the auction is ended
     event AuctionEnded();
 
-    /// @notice Logged when the auction has ended and tokens are transferred to a winning bidder
-    event TokensTransferred(address indexed bidder, uint amount);
 
     /**
      *  @param _token the address of the ERC20 token being auctioned
@@ -85,6 +82,7 @@ contract TokenAuction {
      *  @notice Submit a new bid for a given amount of tokens and a given price.
      *  @param _amount the amount of ERC20 tokens in the bid
      *  @param _price the price of the bid
+     *  @dev the new Bid is appended to a dynamic array of bids which is kept sorted in ascending price order.
      */
     function bid(uint _amount, uint _price) external notTheOwner auctionInProgress {
 
@@ -93,8 +91,7 @@ contract TokenAuction {
                     bidder: msg.sender,
                     timestamp: block.timestamp,
                     amount: _amount,
-                    price: _price,
-                    filled: 0
+                    price: _price
                 }
             )
         );
@@ -114,20 +111,21 @@ contract TokenAuction {
 
     /**
      * @notice End the auction and transfer the token amount to the winning bidders.
-     * @dev the array of bids is processed backwards until all bids are filled or all tokens are sent.
+     * @dev the array of bids, which is already sorted in ascending price order, is processed backwards
+     *      from the last item to the first, until all bids are filled or all tokens are sold out.
+     *      As the winning bids are processed the tokens are sent to their buyers.
      */
     function endAuction() external auctionEnded {
-
-        if (bids.length > 0) {
-            for (uint i = bids.length - 1; i >= 0; i--) {
+        uint bidsCount = bids.length;
+        if (bidsCount > 0) {
+            for (uint i = bidsCount - 1; i >= 0; i--) {
                 // process i-th bid
-                Bid storage abid = bids[i];
+                Bid memory abid = bids[i];
                 uint amountFilled = abid.amount <= amount ? abid.amount : amount;
-                abid.filled = amountFilled;
                 amount -= amountFilled;
 
+                // transfer tokens
                 token.transfer(abid.bidder, amountFilled);
-                emit TokensTransferred(abid.bidder, amountFilled);
 
                 // end processing bids when all tokens have been transferred
                 // or all bids have been processed
@@ -140,41 +138,39 @@ contract TokenAuction {
 
 
     /**
-     *  @notice Return the array of bids
-     *  @dev the returned array is sorted in ascending price order
+     * @notice Returns the array of all bids sorted in ascending price order.
      */
-    function bidsCount() external view returns (uint) {
-        return bids.length;
-    }
-
-
     function getAllBids() external view returns (Bid[] memory) {
         return bids;
     }
 
 
-
+    /// @notice Requires that the function is called by the contract owner.
     modifier onlyOwner() {
         require(msg.sender == owner, "TokenAuction: caller is not the owner");
         _;
     }
 
+    /// @notice Requires that the function is called by accounts other than the owner.
     modifier notTheOwner() {
         require(msg.sender != owner, "TokenAuction: caller is the owner");
         _;
     }
 
+    /// @notice Requires that the auction is not started.
     modifier auctionNotStarted() {
         require(auctionStart == 0 && auctionEnd == 0, "TokenAuction: auction already started");
         _;
     }
 
+    /// @notice Requires that the auction is in progress (e.g started but not ended yet)
     modifier auctionInProgress() {
         require(auctionStart > 0 && auctionEnd > 0, "TokenAuction: auction not started");
         require(block.timestamp < auctionEnd, "TokenAuction: auction ended");
         _;
     }
 
+    /// @notice Requires that the auction is in progress (e.g started but not ended yet)
     modifier auctionEnded() {
         require(auctionStart > 0 && auctionEnd > 0, "TokenAuction: auction not started");
         require(block.timestamp >= auctionEnd, "TokenAuction: auction in progress");

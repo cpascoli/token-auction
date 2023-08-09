@@ -1,7 +1,7 @@
 # Token Auctions
 
 A simple auction contract for ERC20 tokens.
-The repo includes a Solidity contract, TokenAuction.sol, that allows to auciton a certain amount of ERC20 tokens to bidders.
+The repo includes a Solidity contract, TokenAuction.sol, that allows to auction a certain amount of ERC20 tokens to bidders.
 
 The contract includes:
 
@@ -18,9 +18,14 @@ npm install                      # Install dependencies
 
 ```
 
-##  Run Tests
+##  Run Functional Tests
 ```shell
-npx hardhat test
+npm run test
+```
+
+## Run Gas Tests
+```shell
+npm run gas-test
 ```
 
 ## Generate Docs

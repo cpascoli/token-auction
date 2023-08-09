@@ -40,35 +40,6 @@ describe("TokenAuction", function () {
         describe("bids filling process", function () {
 
             describe("all bids fully filled", function () {
-
-                it("sets the filled amount", async function () {
-                    const { tokenAuction, testToken, user } = await loadFixture(deployAuctionContract);
-                    
-                    // start an auction for 1000 tokens
-                    await startAuction(tokenAuction, testToken, toWei(1000), 7 * day);
-    
-                    const users = [user, user, user]
-                    const prices = [1, 1.1, 1.2]
-                    const amounts = [toWei(100), toWei(600), toWei(300)]
-                  
-                    await submitBids(tokenAuction, users, amounts, prices)
-    
-                    await waitSeconds(7 * day);
-    
-                    // end auction
-                    await tokenAuction.connect(user).endAuction();
-    
-                    const bids = await tokenAuction.getAllBids()
-    
-                    expect ( bids[0].amount ).to.equal( bids[0].filled );
-                    expect ( bids[1].amount ).to.equal( bids[1].filled );
-                    expect ( bids[2].amount ).to.equal( bids[2].filled );
-    
-                    expect ( bids[0].filled ).to.equal( toWei(100) );
-                    expect ( bids[1].filled ).to.equal( toWei(600) );
-                    expect ( bids[2].filled ).to.equal( toWei(300) );
-                });
-
                 it("transfer the tokens to all bidders", async function () {
                     const { tokenAuction, testToken } = await loadFixture(deployAuctionContract);
                     const [ _, user0, user1, user2 ] = await ethers.getSigners();
@@ -92,30 +63,6 @@ describe("TokenAuction", function () {
             });
 
             describe("some bids unfilled", function () {
-
-                it("sets the filled amount", async function () {
-                    const { tokenAuction, testToken, user } = await loadFixture(deployAuctionContract);
-                    
-                    // start an auction for 1000 tokens
-                    await startAuction(tokenAuction, testToken, toWei(1000), 7 * day);
-    
-                    const users = [user, user, user]
-                    const prices = [1.2, 1.0, 1.1]
-                    const amounts = [toWei(700), toWei(200), toWei(300)]
-                  
-                    await submitBids(tokenAuction, users, amounts, prices)
-    
-                    // end auction
-                    await waitSeconds(7 * day);
-                    await tokenAuction.connect(user).endAuction();
-    
-                    const bids = await tokenAuction.getAllBids()
-
-                    expect ( bids[0].filled ).to.equal( toWei(0) ); // unfilled bid
-                    expect ( bids[1].filled ).to.equal( toWei(300) );
-                    expect ( bids[2].filled ).to.equal( toWei(700) );
-                });
-
                 it("transfer the tokens to the winning bidders", async function () {
                     const { tokenAuction, testToken } = await loadFixture(deployAuctionContract);
                     const [ _, user0, user1, user2 ] = await ethers.getSigners();
@@ -140,32 +87,6 @@ describe("TokenAuction", function () {
             });
 
             describe("partially filled bid", function () {
-
-                it("sets the filled amount", async function () {
-                    const { tokenAuction, testToken, user } = await loadFixture(deployAuctionContract);
-                    
-                    // start an auction for 1000 tokens
-                    await startAuction(tokenAuction, testToken, toWei(1000), 7 * day);
-    
-                    const users = [user, user, user]
-                    const prices = [1, 1.1, 1.2]
-                    const amounts = [toWei(100), toWei(1000), toWei(600)]
-                  
-                    await submitBids(tokenAuction, users, amounts, prices)
-                    await waitSeconds(7 * day);
-                    await tokenAuction.connect(user).endAuction();
-    
-                    const bids = await tokenAuction.getAllBids()
-    
-                    expect ( bids[0].amount ).to.equal( toWei(100) );
-                    expect ( bids[1].amount ).to.equal( toWei(1000) );
-                    expect ( bids[2].amount ).to.equal( toWei(600) );
-    
-                    expect ( bids[0].filled ).to.equal( toWei(0) );
-                    expect ( bids[1].filled ).to.equal( toWei(400) );
-                    expect ( bids[2].filled ).to.equal( toWei(600) );
-                });
-
                 it("transfer the tokens to the winning bidders", async function () {
                     const { tokenAuction, testToken } = await loadFixture(deployAuctionContract);
                     const [ _, user0, user1, user2 ] = await ethers.getSigners();
@@ -185,36 +106,6 @@ describe("TokenAuction", function () {
                     expect ( await testToken.balanceOf(user0.address) ).to.equal( toWei(0) );
                     expect ( await testToken.balanceOf(user1.address) ).to.equal( toWei(400) );
                     expect ( await testToken.balanceOf(user2.address) ).to.equal( toWei(600) );
-                });
-
-                it("the partially filled bid has lower price than the fully filled bids", async function () {
-                    const { tokenAuction, testToken } = await loadFixture(deployAuctionContract);
-                    const [ _, user0, user1, user2 ] = await ethers.getSigners();
-
-                    // start an auction and pakce some bids
-                    await startAuction(tokenAuction, testToken, toWei(1000), 7 * day);
-                    const users = [user0, user1, user2];
-                    const prices = [1, 1.2, 1.1]
-                    const amounts = [toWei(100), toWei(400), toWei(700)]
-
-                    await submitBids(tokenAuction, users, amounts, prices)
-
-                    // end auction
-                    await waitSeconds(7 * day);
-                    await tokenAuction.connect(user0).endAuction();
-
-                    const bids = await tokenAuction.getAllBids()
-
-                    const fullyFilledBidPrices = bids.filter( it => toUnits(it.filled) > 0 && toUnits(it.filled) === toUnits(it.amount) ).map( it => toUnits(it.price))
-                    const partiallyFilledBidPrices = bids.filter( it => toUnits(it.filled) > 0 && toUnits(it.filled) < toUnits(it.amount) ).map( it => toUnits(it.price))
-                    
-                    // there can only be 1 partially filled bid
-                    expect( partiallyFilledBidPrices.length ).to.equal(1);
-
-                    const pricePartiallyFilled = partiallyFilledBidPrices[0]
-                    const minPriceFilled = Math.min(...fullyFilledBidPrices);
-
-                    expect(pricePartiallyFilled).to.be.lessThanOrEqual(minPriceFilled)
                 });
             });
 

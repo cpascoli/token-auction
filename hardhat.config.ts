@@ -18,17 +18,6 @@ const config : HardhatUserConfig = {
     },
   },
 
-  paths: {
-    sources: './contracts',
-    tests: './test',
-    cache: './cache',
-    artifacts: './artifacts',
-  },
-
-  mocha: {
-    timeout: 60000
-  },
-
   gasReporter: {
     enabled: true,
     outputFile: "gas-report.txt",
@@ -44,11 +33,6 @@ const config : HardhatUserConfig = {
     runOnCompile: true,
   },
 
-  networks: {
-    hardhat: {
-      accounts: { accountsBalance: "10000000000000000000000" }
-    },
-  },
 };
 
 export default config;

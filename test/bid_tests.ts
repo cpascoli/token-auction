@@ -59,7 +59,7 @@ describe("TokenAuction", function () {
                 const price = toWei(0.01);
                 await tokenAuction.connect(user).bid(amount, price) 
 
-                expect( await tokenAuction.bidsCount() ) .to.be.equal(1);
+                expect( (await tokenAuction.getAllBids()).length ).to.be.equal(1);
             });
 
         });

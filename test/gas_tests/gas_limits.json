@@ -1,0 +1,8 @@
+{
+    "bid_10_random_bids": 200000,
+    "bid_100_incrasing_bids": 150000,
+    "bid_100_random_bids": 700000,
+
+    "end_auction_100_bids": 3500000,
+    "end_auction_1000_bids": 1500000
+}
