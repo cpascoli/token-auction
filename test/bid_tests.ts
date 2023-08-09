@@ -125,8 +125,6 @@ describe("TokenAuction", function () {
                 const amount = toWei(1000);
                 const price = toWei(1.1);
     
-                const blockTimestampBeforeAcutionStart = await getLastBlockTimestamp()
-    
                 expect( await tokenAuction.connect(user).bid(amount, price) )
                     .to.emit(tokenAuction, 'BidSubmitted')
                     .withArgs(user.address, amount, price);

@@ -124,3 +124,39 @@ export const submitBids = async (
 
     return bids;
 }
+
+
+/**
+ * @param min the min value (inclusive)
+ * @param max the max value (exclusive)
+ * @returns Random value between min (inclusive) and max (exclusive)
+ */
+export const getRandomBetween = (min: number, max: number) => {
+    return Math.random() * (max - min) + min;
+}
+
+/**
+ * Submit n bids and returns the average gas spent.
+ * 
+ * @param prices an array of n prices used to submit n bids
+ * @param amount the amount of each bid
+ * @param user the user submitting the transactions
+ * @param tokenAuction the TokenAuction contract
+ * @returns The average gas spent for all tranactions as a Promise<BigNumber>
+ */
+export const submitBidsAndGetAvgGas = async (
+        prices: number[],
+        amount: BigNumber,
+        user: SignerWithAddress, 
+        tokenAuction: Contract,
+    )  => {
+    
+    let totalGasUsed = BigNumber.from(0);
+    for (let i=0; i<prices.length; i++) {
+        const tx = await tokenAuction.connect(user).bid(amount, toWei(prices[i]));
+        const gasUsed = (await tx.wait()).gasUsed;
+        totalGasUsed = totalGasUsed.add(gasUsed);
+    }
+
+    return totalGasUsed.div(prices.length).toNumber();
+}

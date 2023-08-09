@@ -33,6 +33,9 @@ contract TokenAuction {
     /// The array of the user bids. As new bids are added to it it's maintaied ordered in ascending bid price order.
     Bid[] public bids;
 
+    /// A boolean indicating if all winning bids have been processed and the auction is ended.
+    bool public bidsProcessingEnded;
+
 
     /**
      * @title Represents a bid by a user.
@@ -119,33 +122,57 @@ contract TokenAuction {
         emit BidSubmitted(msg.sender, _amount, _price);
     }
 
+    uint private lastBidFilledIdx;
 
     /**
      * @notice End the auction and transfer the token amount to the winning bidders.
-     * @dev the array of bids, which is already sorted in ascending price order, is processed backwards
+     * @param batchSize the max number of the bids to filled in one transaction. If 0 is passed than all winning bids are processed.
+     * @dev the array of bids, which is already sorted in ascending price orderis processed backwards,
      *      from the last item to the first, until all bids are filled or all tokens are sold out.
-     *      As the winning bids are processed the tokens are sent to their buyers.
+     *      As the winning bids are processed the appropriate amount of tokens are sent to the winners.
+     *      The AuctionEnded event is emitted when all wnning bids have been processed.
      */
-    function endAuction() external auctionEnded {
+    function endAuction(uint batchSize) external auctionEnded {
+
         uint bidsCount = bids.length;
-        if (bidsCount > 0) {
-            for (uint i = bidsCount - 1; i >= 0; i--) {
-                // process i-th bid
-                Bid memory abid = bids[i];
-                uint amountFilled = abid.amount <= amount ? abid.amount : amount;
-                amount -= amountFilled;
+ 
+        // return if have no bids or all tokens have been distribured
+        if (bidsProcessingEnded || bidsCount == 0 || amount == 0) {
+            emit AuctionEnded();
+            return;
+        }
 
-                // transfer tokens
-                bool transferred = token.transfer(abid.bidder, amountFilled);
-                assert(transferred);
+        // determine the start and end indexes of the bids to process,
+        // if batchSize is 0 than process all bids otherwise process at most batchSize bids
+        uint startIdx = lastBidFilledIdx == 0 ? bidsCount - 1 : lastBidFilledIdx - 1;
+        uint endIdx = (batchSize == 0) ? 0 : (startIdx > batchSize) ? startIdx - batchSize + 1: 0;
 
-                // end processing bids when all tokens have been transferred
-                // or all bids have been processed
-                if (amount == 0 || i == 0) break;
+        uint i;
+        for (i = startIdx; i >= endIdx; i--) {
+
+            // fill the i-th bid
+            Bid memory abid = bids[i];
+            uint amountFilled = abid.amount <= amount ? abid.amount : amount;
+            amount -= amountFilled;
+
+            // transfer the tokens
+            bool transferred = token.transfer(abid.bidder, amountFilled);
+            assert(transferred);
+
+            // end processing bids when all tokens have been transferred
+            // or all bids have been processed
+            if (amount == 0 || i == 0) {
+                bidsProcessingEnded = true;
+                break;
             }
         }
 
-        emit AuctionEnded();
+        // remember the index of the last bid processed
+        lastBidFilledIdx = i;
+
+        if(bidsProcessingEnded) {
+            emit AuctionEnded();
+        }
     }
 
 
