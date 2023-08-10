@@ -14,11 +14,12 @@ IMPORTANT:
 - This version of `TokenAuction.sol` does not support the deposit of collateral (e.g. ETH or stable coins) at the time a bid is submitted, or the return of collateral to non winning bidders.
 
 
-## Design decisions and other considerations:
+## Design decisions and gas considerations:
 - The contract holds a dynamic array of all bids submitted by the users. This bids array is kept sorted in ascending price order to ease the process of filling the bids when the auction ends. This strategy incentivises submitting bids at relatively higher prices because such bids cost less gas than bids submitted at relatively lower prices, given that they require less manipulation of the bids array to keep it sorted.
 - The process to end the auction can be triggered only when the duration of the auction has elapsed.
-- When the auction is ended and winning bids are filled, the expected amount of tokens are transferred to the winning bidders.
-- To ensure that an arbitrary number of winning bids can be filled, it's possible to process the winning bids in chunks. This requires calling the `endAuction` function multiple times with the appropriate batch size argument.
+- When the auction is ended and winning bids are filled the expected amount of tokens are transferred to the winning bidders.
+- To ensure that an arbitrary number of winning bids can be filled, it's possible to process the winning bids in chunks. This requires calling the `endAuction` function multiple times with a non-zero batch size argument.
+- The requirement to fill winning bids requires a linear space complexity and time complexity of O(n logn) to sort the bids by descending price. To mitigate the risk of going beyond the block gas limit the array of bids is kept sorted as new bids are received. This can be done at constant O(1) complexity for bids at a price within the n-th highest bid prices. This way it's possible to fill an arbitraty number of winning bids by processing the bids array in multiple tranactions.
 - Effort was focused on extensively testing and documenting the core functionality, rather than adding many extra features.
 
 ## Some goodies

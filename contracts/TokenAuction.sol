@@ -5,14 +5,13 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "hardhat/console.sol";
 
 /**
- *  @title A Solidity contract that implements a simple auction system for ERC20 tokens
+ *  @title A Solidity contract that implements a simple auction system for ERC20 tokens.
  *  @author Carlo Pascoli
  *  @notice The contact can be interacted with using its external functions to:
  *       1. Start an auction (only available to the owner).
  *       2. Bid on the tokens (available only to now-owner users).
- *       3. End the auction. The bids are filled until there are no more tokens or no more bids.
+ *       3. End the auction. Bids are filled until there are no more tokens or no more bids.
  */
-
 contract TokenAuction {
 
     /// The address owning the contract.
@@ -35,6 +34,9 @@ contract TokenAuction {
 
     /// A boolean indicating if all winning bids have been processed and the auction is ended.
     bool public bidsProcessingEnded;
+
+    /// the index of the last bid filled during the auction ending processs. Initialised to the max uint value.
+    uint public lastBidFilledIdx = ~uint256(0);
 
 
     /**
@@ -97,6 +99,10 @@ contract TokenAuction {
      *  @param _amount the amount of ERC20 tokens in the bid
      *  @param _price the price of the bid
      *  @dev the new Bid is appended to a dynamic array of bids which is kept sorted in ascending price order.
+     *          Gas considerations:
+     *          This approach guarantees constant computational complexity, O(1), when the new bids come at
+     *          a price within the top k-th bids. On the other hand, for bids coming at randomly distributed
+     *          prices the computational complexity deteriorate to O(n).
      */
     function bid(uint _amount, uint _price) external notTheOwner auctionInProgress {
 
@@ -122,15 +128,22 @@ contract TokenAuction {
         emit BidSubmitted(msg.sender, _amount, _price);
     }
 
-    uint private lastBidFilledIdx;
 
     /**
-     * @notice End the auction and transfer the token amount to the winning bidders.
-     * @param batchSize the max number of the bids to filled in one transaction. If 0 is passed than all winning bids are processed.
-     * @dev the array of bids, which is already sorted in ascending price orderis processed backwards,
-     *      from the last item to the first, until all bids are filled or all tokens are sold out.
-     *      As the winning bids are processed the appropriate amount of tokens are sent to the winners.
+     * @notice End the auction by filling the winning bids and transfering the tokens to the winning bidders accounts.
+     * @param batchSize the max number of the bids to be processed in the transaction.
+     *      If a batchSize of 0 is passed than processes all winning bids.
+     * @dev In order to fill the winning bids the array of all bids is simply scanned backwards, from the last item to the first,
+     *      until all bids are filled or all auctioned tokens are sold.
+     *      This is possible because the bids array has been kept sorted in ascending price order.
+     *      As the winning bids are processed, the appropriate amount of tokens are sent to the winners' accounts.
      *      The AuctionEnded event is emitted when all wnning bids have been processed.
+     *      In order to limit the gas spent with the transaction the user can pass a non zero 'batchSize' value.
+     *      When winning bids are processed in multiple transactions (e.g. batchSize > 0) the contract variable 'lastBidFilledIdx'
+     *      is used to keep track of the index of the last bid processed, with 0 meaning
+     *      Gas considerations:
+     *      when all winning bids are filled this function has linear complexity O(n) with the number of winning bids.
+     *      To keep gas cost limited, and achieve constant complexity O(1), a 'batchSize' > 0 has to be provided.
      */
     function endAuction(uint batchSize) external auctionEnded {
 
@@ -144,7 +157,7 @@ contract TokenAuction {
 
         // determine the start and end indexes of the bids to process,
         // if batchSize is 0 than process all bids otherwise process at most batchSize bids
-        uint startIdx = lastBidFilledIdx == 0 ? bidsCount - 1 : lastBidFilledIdx - 1;
+        uint startIdx = lastBidFilledIdx == ~uint256(0) ? bidsCount - 1 : lastBidFilledIdx - 1;
         uint endIdx = (batchSize == 0) ? 0 : (startIdx > batchSize) ? startIdx - batchSize + 1: 0;
 
         uint i;
@@ -180,6 +193,7 @@ contract TokenAuction {
     function getAllBids() external view returns (Bid[] memory) {
         return bids;
     }
+
 
     /// @notice Requires that the function is called by the contract owner.
     modifier onlyOwner() {
