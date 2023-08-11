@@ -7,7 +7,7 @@
     "clean": "npx hardhat clean",
     "chain": "npx hardhat node",
     "flatten": "npx hardhat flatten",
-    "test": "npx hardhat test test/auction_config_tests test/start_auction_tests test/bid_tests test/end_auction_tests",
+    "test": "npx hardhat test test/auction_config_tests test/start_auction_tests test/bid_tests test/end_auction_tests test/withdraw_tests test/send_ether_tests",
     "gas-test": "npx hardhat test test/gas_tests/gas_tests",
     "doc": "npx hardhat docgen"
   },
