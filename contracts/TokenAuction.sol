@@ -66,6 +66,9 @@ contract TokenAuction {
     /// @notice Logged when the bidder Ehter balance for unfilled bids is withdrawn
     event EtherWithdrawn(address indexed bidder, uint amount);
 
+    /// notice Logged when the ower transfers Ether out of the contract
+    event EtherSent(address indexed recipient, uint amount);
+
 
     /**
      *  @param _token the address of the ERC20 token being auctioned.
@@ -209,7 +212,7 @@ contract TokenAuction {
          // 1. checks
         require(bidsProcessingEnded, "TokenAuction: winning bids not filled");
         uint balance = balances[msg.sender];
-        require(balance > 0, "TokenAuction: no funds to withdraw");
+        require(balance > 0, "TokenAuction: no Ether to withdraw");
 
         // 2. effects
         balances[msg.sender] = 0;
@@ -218,6 +221,22 @@ contract TokenAuction {
         payable(msg.sender).transfer(balance);
 
         emit EtherWithdrawn(msg.sender, balance);
+    }
+
+
+    /**
+     * @notice Allow the owner to withdraw the Ether in the contract after the auciton ends and bids are filled.
+     * @param _to the address where to send the Ether to.
+     * @param _amount the amount of Ether to withdraw.
+     */
+    function sendEther(address _to, uint _amount) external onlyOwner auctionEnded {
+        require(bidsProcessingEnded, "TokenAuction: winning bids not filled");
+        require(_to != address(0), "TokenAuction: invalid recipient address");
+        require(_amount > 0 && _amount <= address(this).balance, "TokenAuction: invalid amount");
+
+        payable(_to).transfer(_amount);
+
+        emit EtherSent(_to, _amount);
     }
 
 
