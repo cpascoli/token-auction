@@ -2,7 +2,6 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "hardhat/console.sol";
 
 /**
  *  @title A Solidity contract that implements a simple auction system for ERC20 tokens.
@@ -28,6 +27,9 @@ contract TokenAuction {
 
     /// The time when the auction ends.
     uint public auctionEnd;
+
+    /// The Ether balances for each bidder address
+    mapping(address => uint) private balances;
 
     /// The array of the user bids. As new bids are added to it it's maintaied ordered in ascending bid price order.
     Bid[] public bids;
@@ -60,6 +62,9 @@ contract TokenAuction {
 
     /// @notice Logged when the auction is ended
     event AuctionEnded();
+
+    /// @notice Logged when the bidder Ehter balance for unfilled bids is withdrawn
+    event EtherWithdrawn(address indexed bidder, uint amount);
 
 
     /**
@@ -104,7 +109,12 @@ contract TokenAuction {
      *          a price within the top k-th bids. On the other hand, for bids coming at randomly distributed
      *          prices the computational complexity deteriorate to O(n).
      */
-    function bid(uint _amount, uint _price) external notTheOwner auctionInProgress {
+    function bid(uint _amount, uint _price) external payable notTheOwner auctionInProgress {
+        require(_amount > 0 && _price > 0, "TokenAuction: invalid bid");
+        require(msg.value == _amount * _price / 1e18, "TokenAuction: invalid amount of Ether sent");
+
+        // account for the Ether received
+        balances[msg.sender] += msg.value;
 
         // append the new bid to the bid array
         bids.push(
@@ -158,22 +168,23 @@ contract TokenAuction {
         // determine the start and end indexes of the bids to process,
         // if batchSize is 0 than process all bids otherwise process at most batchSize bids
         uint startIdx = lastBidFilledIdx == ~uint256(0) ? bidsCount - 1 : lastBidFilledIdx - 1;
-        uint endIdx = (batchSize == 0) ? 0 : (startIdx > batchSize) ? startIdx - batchSize + 1: 0;
-
+        uint endIdx = (batchSize == 0) ? 0 : (startIdx > batchSize - 1) ? startIdx - (batchSize - 1) : 0;
+        
         uint i;
         for (i = startIdx; i >= endIdx; i--) {
-
             // fill the i-th bid
             Bid memory abid = bids[i];
             uint amountFilled = abid.amount <= amount ? abid.amount : amount;
             amount -= amountFilled;
 
+            // reduce the bidder balance by the value of the tokens bought at the bid price.
+            balances[abid.bidder] -= amountFilled * abid.price / 1e18;
+
             // transfer the tokens
             bool transferred = token.transfer(abid.bidder, amountFilled);
             assert(transferred);
 
-            // end processing bids when all tokens have been transferred
-            // or all bids have been processed
+            // end processing bids when all tokens are sold or all bids are processed
             if (amount == 0 || i == 0) {
                 bidsProcessingEnded = true;
                 break;
@@ -181,11 +192,46 @@ contract TokenAuction {
         }
 
         // remember the index of the last bid processed
-        lastBidFilledIdx = i;
+        lastBidFilledIdx = bidsProcessingEnded ? i : endIdx;
 
         if(bidsProcessingEnded) {
             emit AuctionEnded();
         }
+    }
+
+
+    /**
+     * @notice Allow the sender to withdraw their funds that were not used to fill bids.
+     *         Requires the auction to have ended and bids filled.
+     */
+    function withdraw() external auctionEnded {
+
+         // 1. checks
+        require(bidsProcessingEnded, "TokenAuction: winning bids not filled");
+        uint balance = balances[msg.sender];
+        require(balance > 0, "TokenAuction: no funds to withdraw");
+
+        // 2. effects
+        balances[msg.sender] = 0;
+
+        // 3. interactions
+        payable(msg.sender).transfer(balance);
+
+        emit EtherWithdrawn(msg.sender, balance);
+    }
+
+
+    /// @notice returns the contract Ether balance
+    function getBalance() external view returns (uint) {
+        return address(this).balance;
+    }
+
+    
+    /// @notice Get the Ether balance for a bidder.
+    /// @param user the address of a user.
+    /// @return returns the Ether balance for the user.
+    function getBidderBalance(address user) external view returns (uint) {
+        return balances[user];
     }
 
 

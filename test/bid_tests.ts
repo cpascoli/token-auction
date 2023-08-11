@@ -8,7 +8,8 @@ import {
     day, 
     waitSeconds, 
     getLastBlockTimestamp, 
-    isSortedDescending 
+    isSortedDescending, 
+    toUnits
 } from "./helpers";
 
 
@@ -17,10 +18,9 @@ import {
  */
 describe("TokenAuction", function () {
 
-    describe("bid", function () {
+    describe("bid()", function () {
 
         describe("validation", function () {
-
             it("reverts when caller is the owner", async function () {
                 const { tokenAuction, testToken, owner } = await loadFixture(deployAuctionContract);
                 await startAuction(tokenAuction, testToken, toWei(1000), 7 * day)
@@ -51,22 +51,121 @@ describe("TokenAuction", function () {
                 await expect( tokenAuction.connect(user).bid(amount, price) ).to.be.revertedWith("TokenAuction: auction ended");
             });
 
-            it("stores a bid when caller is not the owner", async function () {
+            it("reverts when the bid amount is 0", async function () {
+                const { tokenAuction, testToken, user } = await loadFixture(deployAuctionContract);
+                await startAuction(tokenAuction, testToken, toWei(1000), 7 * day)
+
+                const amount = toWei(0);
+                const price = toWei(0.01);
+                await expect( tokenAuction.connect(user).bid(amount, price) ).to.be.revertedWith("TokenAuction: invalid bid");
+            });
+
+            it("reverts when bid price is 0", async function () {
+                const { tokenAuction, testToken, user } = await loadFixture(deployAuctionContract);
+                await startAuction(tokenAuction, testToken, toWei(1000), 7 * day)
+
+                const amount = toWei(1);
+                const price = toWei(0);
+                await expect( tokenAuction.connect(user).bid(amount, price) ).to.be.revertedWith("TokenAuction: invalid bid");
+            });
+
+            it("reverts when the amount of Ether received is too few", async function () {
                 const { tokenAuction, testToken, user } = await loadFixture(deployAuctionContract);
                 await startAuction(tokenAuction, testToken, toWei(1000), 7 * day)
 
                 const amount = toWei(100);
                 const price = toWei(0.01);
-                await tokenAuction.connect(user).bid(amount, price) 
+                // ether amount sent is short 1 wei
+                const etherAmount = toWei(toUnits(amount) * toUnits(price)).sub(1);
 
-                expect( (await tokenAuction.getAllBids()).length ).to.be.equal(1);
+                await expect( tokenAuction.connect(user).bid(amount, price, { value: etherAmount }) ).to.be.revertedWith("TokenAuction: invalid amount of Ether sent");
+            });
+
+            it("reverts when the amount of Ether received is too many", async function () {
+                const { tokenAuction, testToken, user } = await loadFixture(deployAuctionContract);
+                await startAuction(tokenAuction, testToken, toWei(1000), 7 * day)
+
+                const amount = toWei(100);
+                const price = toWei(0.01);
+                // ether amount sent is in excess of 1 wei
+                const etherAmount = toWei(toUnits(amount) * toUnits(price)).add(1); 
+
+                await expect( tokenAuction.connect(user).bid(amount, price, { value: etherAmount }) ).to.be.revertedWith("TokenAuction: invalid amount of Ether sent");
             });
 
         });
 
 
-        describe("ordering", function () {
+        describe("processing", function () {
+            it("stores a bid when the caller is not the owner", async function () {
+                const { tokenAuction, testToken, user } = await loadFixture(deployAuctionContract);
+                await startAuction(tokenAuction, testToken, toWei(1000), 7 * day)
 
+                const amount = toWei(100);
+                const price = toWei(0.01);
+                const etherAmount = toWei(toUnits(amount) * toUnits(price));
+
+                await tokenAuction.connect(user).bid(amount, price, { value: etherAmount }) 
+
+                expect( (await tokenAuction.getAllBids()).length ).to.be.equal(1);
+            });
+
+            it("receives Ether from the bidder when a bid is stored", async function () {
+                const { tokenAuction, testToken, user } = await loadFixture(deployAuctionContract);
+                await startAuction(tokenAuction, testToken, toWei(1000), 7 * day)
+
+                const amount = toWei(100);
+                const price = toWei(0.01);
+                const etherAmount = toWei(toUnits(amount) * toUnits(price));
+
+                await tokenAuction.connect(user).bid(amount, price, { value: etherAmount }) 
+
+                expect( await tokenAuction.getBalance() ).to.be.equal( etherAmount )
+            });
+
+            it("adds Ether to the bidder balance for one bid", async function () {
+                const { tokenAuction, testToken, user } = await loadFixture(deployAuctionContract);
+                await startAuction(tokenAuction, testToken, toWei(1000), 7 * day)
+
+                const amount = toWei(100);
+                const price = toWei(0.01);
+                const etherAmount = toWei(toUnits(amount) * toUnits(price));
+
+                await tokenAuction.connect(user).bid(amount, price, { value: etherAmount }) 
+
+                expect( await tokenAuction.getBidderBalance(user.address) ).to.be.equal( etherAmount )
+            });
+
+            it("increments the bidder balance when more bids are received", async function () {
+                const { tokenAuction, testToken, user } = await loadFixture(deployAuctionContract);
+                await startAuction(tokenAuction, testToken, toWei(1000), 7 * day)
+
+                const amount = toWei(100);
+                const price = toWei(0.01);
+           
+                const etherAmount = toWei(toUnits(amount) * toUnits(price));
+                await tokenAuction.connect(user).bid(amount, price, { value: etherAmount }) 
+                await tokenAuction.connect(user).bid(amount, price, { value: etherAmount }) 
+
+                expect( await tokenAuction.getBidderBalance(user.address) ).to.be.equal( etherAmount.mul(2) )
+            });
+
+            it("emits the BidSubmitted event", async function () {
+                const { tokenAuction, testToken, user } = await loadFixture(deployAuctionContract);
+                await startAuction(tokenAuction, testToken, toWei(1000), 7 * day)
+
+                const amount = toWei(1);
+                const price = toWei(1.1);
+                const etherAmount = toWei(toUnits(amount) * toUnits(price)); 
+    
+                await expect( tokenAuction.connect(user).bid(amount, price, { value: etherAmount }) )
+                    .to.emit(tokenAuction, 'BidSubmitted')
+                    .withArgs(user.address, amount, price);
+            });
+        })
+
+
+        describe("ordering", function () {
             it("records bids in ascending order for 2 bids of increasing bid prices", async function () {
                 const { tokenAuction, testToken, user } = await loadFixture(deployAuctionContract);
                 await startAuction(tokenAuction, testToken, toWei(1000), 7 * day)
@@ -95,8 +194,8 @@ describe("TokenAuction", function () {
                 const { tokenAuction, testToken, user } = await loadFixture(deployAuctionContract);
                 await startAuction(tokenAuction, testToken, toWei(1000), 7 * day)
 
-                const amount = toWei(100);
-                const prices = [5, 2, 1, 1, 1, 2, 2, 2.1, 0.1, 1, 2]
+                const amount = toWei(1);
+                const prices = [5, 2, 1, 1, 1, 2, 2, 2.1, 0.1, 1, 2];
                 const users = Array(prices.length).fill(user)
                 const bidPrices = (await submitBids(tokenAuction, users, [amount], prices)).map( it => it.price ) 
                 const ascendingPrices = prices.sort( (a, b) =>  a < b ? -1 : 1)
@@ -108,7 +207,7 @@ describe("TokenAuction", function () {
                 const { tokenAuction, testToken, user } = await loadFixture(deployAuctionContract);
                 await startAuction(tokenAuction, testToken, toWei(1000), 7 * day)
 
-                const amount = toWei(100);
+                const amount = toWei(1);
                 const prices = [2, 1, 3, 1, 1, 2, 2, 2.1, 0.1, 1, 2]
                 const users = Array(prices.length).fill(user)
                 const bidsTimestamps = (await submitBids(tokenAuction, users, [amount], prices))
@@ -116,21 +215,8 @@ describe("TokenAuction", function () {
                     .map( it => it.timestamp )
 
                 expect( isSortedDescending(bidsTimestamps) ).to.be.true
-            })
-
-            it("emits the BidSubmitted event", async function () {
-                const { tokenAuction, testToken, user } = await loadFixture(deployAuctionContract);
-                await startAuction(tokenAuction, testToken, toWei(1000), 7 * day)
-
-                const amount = toWei(1000);
-                const price = toWei(1.1);
-    
-                expect( await tokenAuction.connect(user).bid(amount, price) )
-                    .to.emit(tokenAuction, 'BidSubmitted')
-                    .withArgs(user.address, amount, price);
             });
         })
-
 
     })
 
