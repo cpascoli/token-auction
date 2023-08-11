@@ -5,7 +5,7 @@ import { expect } from "chai";
 import { deployAuctionContract, startAuction, submitBids, waitSeconds, toWei, toUnits, day } from "./helpers";
 
 /**
- * Tests for the configuration of the TokenAuction contract.
+ * Tests for the withdraw function of the TokenAuction contract.
  */
 describe("TokenAuction", function () {
 
@@ -62,7 +62,7 @@ describe("TokenAuction", function () {
                 await waitSeconds(7 * day);
                 await tokenAuction.connect(user0).endAuction(0);
        
-                await expect( tokenAuction.connect(user2).withdraw() ).to.be.revertedWith("TokenAuction: no funds to withdraw");
+                await expect( tokenAuction.connect(user2).withdraw() ).to.be.revertedWith("TokenAuction: no Ether to withdraw");
             });
         })
 

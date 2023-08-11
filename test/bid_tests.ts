@@ -14,7 +14,7 @@ import {
 
 
 /**
- * Tests the bid function of the TokenAuction contract.
+ * Tests for the bid function of the TokenAuction contract.
  */
 describe("TokenAuction", function () {
 

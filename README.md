@@ -9,7 +9,8 @@ The contract provides the following functionality:
 1. A function `startAuction` to start the auction for a specified quantity of ERC20 tokens and duration for the auction. This function is accessible to the contract owner. 
 2. A function `bid` to allow users to place bids on tokens for a desited amount and price. When a new bid is placed ETH is transferred to the contract to pay for the tokens if the bid gets filled. This function is accessible to non-owner users.
 3. A function `endAuction` to end the auction and fill the bids.
-4. A function `withdraw` to return the ETH to the bidders for their unfilled bids after the auction ends.
+4. A function `withdraw` for bidders with unfilled bids to get their ETH back after the auction ends.
+5. A function `sendEther` for the contract owner to withdraw ETH from the contract after the auction ends.
 
 
 ## Design decisions and gas considerations:

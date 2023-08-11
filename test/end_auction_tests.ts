@@ -13,7 +13,7 @@ import {
 } from "./helpers";
 
 /**
- * Tests the startAuction function of the TokenAuction contract.
+ * Tests the endAuction function of the TokenAuction contract.
  */
 describe("TokenAuction", function () {
 
