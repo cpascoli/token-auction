@@ -8,6 +8,13 @@ const config : HardhatUserConfig = {
   
   defaultNetwork: "hardhat",
 
+  networks: {
+    hardhat: {
+      // provide each test account with 100 Ether
+      accounts: { accountsBalance: "100000000000000000000" }
+    },
+  },
+
   solidity: {
     version: "0.8.17",
     settings: {
