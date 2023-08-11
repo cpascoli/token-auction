@@ -50,7 +50,7 @@ describe("TokenAuction", function () {
         });
 
 
-        describe("auction starting process", function () {
+        describe("auction start process", function () {
 
             it("sets the auction end time", async function () {
                 const { tokenAuction, testToken } = await loadFixture(deployAuctionContract);
@@ -80,7 +80,7 @@ describe("TokenAuction", function () {
 
                 await testToken.approve(tokenAuction.address, amount);
 
-                expect( await tokenAuction.startAuction(toWei(1000), duration) )
+                await expect( tokenAuction.startAuction(toWei(1000), duration) )
                     .to.emit(tokenAuction, 'AuctionStarted')
                     .withArgs(amount, duration);
             });
