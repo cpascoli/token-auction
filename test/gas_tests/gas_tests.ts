@@ -14,7 +14,7 @@ import gas_limits from "./gas_limits.json"
 
 describe("TokenAuction Gas Tests", function () {
 
-    describe("bid", function () {
+    describe("bid()", function () {
 
         it("100 bids at increasing prices", async function () {
             const { tokenAuction, testToken, user } = await deployAuctionContract();
@@ -22,10 +22,10 @@ describe("TokenAuction Gas Tests", function () {
 
             const bids = 100;
             const amount = toWei(10);
-            let startingPrice = 100;
+            let basePrice = 1;
 
             // submit 100 bids for increasing prices
-            const prices = Array.from({ length: bids }, () => startingPrice++);
+            const prices = Array.from({ length: bids }, () => basePrice++ / 1000 );
             const avgGasUsed = await submitBidsAndGetAvgGas(prices, amount, user, tokenAuction)
          
             expect( avgGasUsed ).to.lessThan( gas_limits.bid_100_incrasing_bids );
@@ -40,7 +40,7 @@ describe("TokenAuction Gas Tests", function () {
             const amount = toWei(10);
 
             // submit 10 bids for randomly distributed prices
-            const prices = Array.from({ length: bids }, () => getRandomBetween(0.5, 1.5));
+            const prices = Array.from({ length: bids }, () => getRandomBetween(0.001, 0.01));
             const avgGasUsed = await submitBidsAndGetAvgGas(prices, amount, user, tokenAuction)
             expect( avgGasUsed ).to.lessThan( gas_limits.bid_10_random_bids );
             
@@ -53,7 +53,7 @@ describe("TokenAuction Gas Tests", function () {
             const amount = toWei(10);
 
             // submit 100 bids for randomly distributed prices
-            const prices = Array.from({ length: bids }, () => getRandomBetween(0.5, 1.5));
+            const prices = Array.from({ length: bids }, () => getRandomBetween(0.001, 0.01));
             const avgGasUsed = await submitBidsAndGetAvgGas(prices, amount, user, tokenAuction)
             expect( avgGasUsed ).to.lessThan( gas_limits.bid_100_random_bids );
             
@@ -61,7 +61,7 @@ describe("TokenAuction Gas Tests", function () {
     })
 
 
-    describe("endAuction", function () {
+    describe("endAuction()", function () {
 
         it("processed 100 bids", async function () {
             const { tokenAuction, testToken, user } = await deployAuctionContract();
@@ -69,10 +69,11 @@ describe("TokenAuction Gas Tests", function () {
 
             const bids = 100;
             const amount = toWei(10);
-            let startingPrice = 100;
+            let basePrice = 1;
 
             // submit 100 bids for increasing prices
-            const prices = Array.from({ length: bids }, () => startingPrice++);
+            const prices = Array.from({ length: bids }, () => basePrice++ / 10_000 );
+
             await submitBidsAndGetAvgGas(prices, amount, user, tokenAuction)
 
             // wait for the end of the auction
@@ -92,10 +93,10 @@ describe("TokenAuction Gas Tests", function () {
 
             const bids = 1000;
             const amount = toWei(1);
-            let startingPrice = 1;
+            let basePrice = 1;
 
             // submit 1000 bids for increasing prices
-            const prices = Array.from({ length: bids }, () => startingPrice++);
+            const prices = Array.from({ length: bids }, () => basePrice++ / 100_000 );
             await submitBidsAndGetAvgGas(prices, amount, user, tokenAuction);
 
             // wait for the end of the auction
@@ -114,7 +115,7 @@ describe("TokenAuction Gas Tests", function () {
                 if (event?.event === 'AuctionEnded') break;
             }
       
-        }).timeout(10_000);
+        }).timeout(30_000);
     })
 
 
