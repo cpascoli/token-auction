@@ -106,11 +106,15 @@ export const submitBids = async (
         prices: number[]
     ) => {
 
-    for (const [index, user] of users.entries()) {
-        const amount = amounts[index % amounts.length]
-        const price = prices[index % prices.length]
+    const precision = 10**6;
 
-        await tokenAuction.connect(user).bid(amount, toWei(price))
+    for (const [index, user] of users.entries()) {
+        const amount = amounts[index % amounts.length];
+        const price = prices[index % prices.length]
+        const scaledPrice =  BigNumber.from( Math.round(price * precision) )
+        const etherAmount = amount.mul( scaledPrice ).div( precision );
+
+        await tokenAuction.connect(user).bid(amount, toWei(price), { value: etherAmount });
     }
 
     const bids : Bid[] = (await tokenAuction.getAllBids()).map( 
@@ -129,10 +133,11 @@ export const submitBids = async (
 /**
  * @param min the min value (inclusive)
  * @param max the max value (exclusive)
+ * @param precision the number of digits of precison of the response. It defaults to 6.
  * @returns Random value between min (inclusive) and max (exclusive)
  */
-export const getRandomBetween = (min: number, max: number) => {
-    return Math.random() * (max - min) + min;
+export const getRandomBetween = (min: number, max: number, precision = 6) => {
+    return Math.round( (Math.random() * (max - min) + min ) * 10**precision  ) / 10**precision;
 }
 
 /**
@@ -151,9 +156,15 @@ export const submitBidsAndGetAvgGas = async (
         tokenAuction: Contract,
     )  => {
     
+    const precision = 10**6;
     let totalGasUsed = BigNumber.from(0);
+
     for (let i=0; i<prices.length; i++) {
-        const tx = await tokenAuction.connect(user).bid(amount, toWei(prices[i]));
+        const price = prices[i]
+        const scaledPrice =  BigNumber.from( Math.round(price * precision) )
+        const etherAmount = amount.mul( scaledPrice ).div( precision );
+        const tx = await tokenAuction.connect(user).bid(amount, toWei(price), { value: etherAmount });
+        
         const gasUsed = (await tx.wait()).gasUsed;
         totalGasUsed = totalGasUsed.add(gasUsed);
     }
