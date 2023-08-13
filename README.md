@@ -25,7 +25,7 @@ The contract provides the following functionality:
 - Documentation is generated from NatSpec comments at compile time into the `docs` directory.
 - Gas tests exist to keep in check the gas requirements of the two more complex `bid` and `endAuction` functions.
 - A Gas report is automatically generated when running the tests and is available in the `gas-report.txt` file.
-
+- HardHat script to deploy the TokenAuction contract and test ERC20 token to Goerli as a OpenZeppeling TransparentUpgradeableProxy
 
 ## Future Improvements:
 - Allow users to bid for tokens and pay in ERC20 tokens (e.g. stable coins).

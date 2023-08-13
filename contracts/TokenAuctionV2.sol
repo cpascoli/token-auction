@@ -9,9 +9,10 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  *  @notice The contact can be interacted with using its external functions to:
  *       1. Start an auction (only available to the owner).
  *       2. Bid on the tokens (available only to now-owner users).
- *       3. End the auction. Bids are filled until there are no more tokens or no more bids.
+ *       3. Cancel a bid before the auction ends. (available only to now-owner users).
+ *       4. End the auction. Bids are filled until there are no more tokens or no more bids.
  */
-contract TokenAuction {
+contract TokenAuctionV2 {
 
     /// The address owning the contract.
     address public owner;
@@ -40,6 +41,9 @@ contract TokenAuction {
     /// the index of the last bid filled during the auction ending processs. Initialised to the max uint value.
     uint public lastBidFilledIdx;
 
+    /// Mapping between bidder accounts and the array of timestamps of cancelled bids
+    mapping (address => uint[]) public cancelledBids;
+
 
     /**
      * @title Represents a bid by a user.
@@ -53,6 +57,8 @@ contract TokenAuction {
         uint amount;
         uint price;
     }
+
+
 
     /// @notice Logged when the token auction is started
     event AuctionStarted(uint amount, uint duration);
@@ -69,17 +75,8 @@ contract TokenAuction {
     /// notice Logged when the ower transfers Ether out of the contract
     event EtherSent(address indexed recipient, uint amount);
 
-
-    /**
-     *  @notice Set the caller as the owner and initialize the Auction with a ERC20 token.
-     *  @param _token the address of the ERC20 token being auctioned.
-     *  @dev can only be called once.
-     */
-    function initialize(address _token) external {
-        owner = msg.sender;
-        token = IERC20(_token);
-        lastBidFilledIdx = ~uint256(0);
-    }
+    /// @notice Logged when an existing bid is cancelled
+    event BidCancelled(address indexed bidder, uint amount, uint price);
 
 
     /**
@@ -145,6 +142,28 @@ contract TokenAuction {
 
 
     /**
+     *  @notice Cancel a bid submitted by the caller for the amount and price provided.
+     *  @param _amount the amount of ERC20 tokens in the bid
+     *  @param _price the price of the bid
+     *  @dev scans the bid array for the first bid of the caller with the amount and price provided,
+     *       and marks that as cancelled.
+     */
+    function cancelBid(uint _amount, uint _price) external payable notTheOwner auctionInProgress {
+
+        for(uint i = bids.length - 1; i > 0 && bids[i].price <= bids[i - 1].price; i--) {
+            Bid memory temp = bids[i];
+            if (temp.bidder == msg.sender && temp.amount == _amount && temp.price == _price) {
+                // add the timestamp of this bid to the array of cancelled bids
+                cancelledBids[msg.sender].push(temp.timestamp);
+
+                emit BidCancelled(msg.sender, _amount, _price);
+                break;
+            }
+        }
+    }
+
+
+    /**
      * @notice End the auction by filling the winning bids and transfering the tokens to the winning bidders accounts.
      * @param batchSize the max number of the bids to be processed in the transaction.
      *      If a batchSize of 0 is passed than processes all winning bids.
@@ -177,17 +196,23 @@ contract TokenAuction {
         
         uint i;
         for (i = startIdx; i >= endIdx; i--) {
-            // fill the i-th bid
+            
             Bid memory abid = bids[i];
-            uint amountFilled = abid.amount <= amount ? abid.amount : amount;
-            amount -= amountFilled;
 
-            // reduce the bidder balance by the value of the tokens bought at the bid price.
-            balances[abid.bidder] -= amountFilled * abid.price / 1e18;
+            // skips cancelled bids
+            bool bidIsCancelled = isBidCancelled(abid.bidder, abid.timestamp);
+            if (!bidIsCancelled) {
+                // fill the i-th bid
+                uint amountFilled = abid.amount <= amount ? abid.amount : amount;
+                amount -= amountFilled;
 
-            // transfer the tokens
-            bool transferred = token.transfer(abid.bidder, amountFilled);
-            assert(transferred);
+                // reduce the bidder balance by the value of the tokens bought at the bid price.
+                balances[abid.bidder] -= amountFilled * abid.price / 1e18;
+
+                // transfer the tokens
+                bool transferred = token.transfer(abid.bidder, amountFilled);
+                assert(transferred);
+            }
 
             // end processing bids when all tokens are sold or all bids are processed
             if (amount == 0 || i == 0) {
@@ -260,6 +285,21 @@ contract TokenAuction {
     function getAllBids() external view returns (Bid[] memory) {
         return bids;
     }
+
+
+     /// @notice returns if a bid at the given timestamp was cancelled
+    function isBidCancelled(address bidder, uint timestamp) internal view returns (bool) {
+        uint[] memory timestamps = cancelledBids[bidder];
+        uint count = timestamps.length;
+        for (uint i = 0; i<count; i++) {
+            if (timestamps[i] == timestamp) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
 
 
     /// @notice Requires that the function is called by the contract owner.
