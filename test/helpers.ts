@@ -69,11 +69,11 @@ export const deployAuctionContract = async () => {
     const testToken = await TestToken.deploy(toWei(1_000_000))
 
     const TokenAuction = await ethers.getContractFactory("TokenAuction")
-    const tokenAuction = await TokenAuction.deploy(
-        testToken.address, 
-    )
-
+    const tokenAuction = await TokenAuction.deploy()
     await tokenAuction.deployed()
+
+    // initialize the TokenAuction contract
+    await tokenAuction.initialize(testToken.address)
 
     return { testToken, tokenAuction, owner, user };
 }

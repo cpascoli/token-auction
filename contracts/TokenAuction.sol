@@ -38,7 +38,7 @@ contract TokenAuction {
     bool public bidsProcessingEnded;
 
     /// the index of the last bid filled during the auction ending processs. Initialised to the max uint value.
-    uint public lastBidFilledIdx = ~uint256(0);
+    uint public lastBidFilledIdx;
 
 
     /**
@@ -71,12 +71,14 @@ contract TokenAuction {
 
 
     /**
+     *  @notice Set the caller as the owner and initialize the Auction with a ERC20 token.
      *  @param _token the address of the ERC20 token being auctioned.
-     *  @dev the deployer is the owner of the contract.
+     *  @dev can only be called once.
      */
-    constructor(address _token) {
+    function initialize(address _token) external {
         owner = msg.sender;
         token = IERC20(_token);
+        lastBidFilledIdx = ~uint256(0);
     }
 
 

@@ -9,7 +9,9 @@
     "flatten": "npx hardhat flatten",
     "test": "npx hardhat test test/auction_config_tests test/start_auction_tests test/bid_tests test/end_auction_tests test/withdraw_tests test/send_ether_tests",
     "gas-test": "npx hardhat test test/gas_tests/gas_tests",
-    "doc": "npx hardhat docgen"
+    "doc": "npx hardhat docgen",
+    "deploy_v1": "env $(cat .env) npx hardhat run --network goerli scripts/deploy_aucction_v1.ts",
+    "upgrade_v2": "env $(cat .env) npx hardhat run --network goerli scripts/upgrade_auction_v2.ts"
   },
   "author": "Carlo Pascoli",
   "license": "MIT",
@@ -22,11 +24,14 @@
     "ethers": "^5.7.2",
     "hardhat-contract-sizer": "^2.7.0",
     "hardhat-docgen": "^1.3.0",
-    "hardhat-gas-reporter": "^1.0.9"
+    "hardhat-gas-reporter": "^1.0.9",
+    "hardhat-abi-exporter": "^2.10.1"
   },
   "dependencies": {
+    "@openzeppelin/hardhat-upgrades": "^1.21.0",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.8",
     "@openzeppelin/contracts": "^4.9.3",
+    "@openzeppelin/contracts-upgradeable": "^4.9.3",
     "hardhat": "^2.12.6"
   }
 }
