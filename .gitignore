@@ -6,3 +6,4 @@ gas-report.txt
 #Hardhat files
 cache
 artifacts
+.env

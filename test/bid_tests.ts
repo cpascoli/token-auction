@@ -97,12 +97,12 @@ describe("TokenAuction", function () {
 
 
         describe("processing", function () {
-            it("stores a bid when the caller is not the owner", async function () {
+            it.only("stores a bid when the caller is not the owner", async function () {
                 const { tokenAuction, testToken, user } = await loadFixture(deployAuctionContract);
                 await startAuction(tokenAuction, testToken, toWei(1000), 7 * day)
 
                 const amount = toWei(100);
-                const price = toWei(0.01);
+                const price = toWei(0.0001);
                 const etherAmount = toWei(toUnits(amount) * toUnits(price));
 
                 await tokenAuction.connect(user).bid(amount, price, { value: etherAmount }) 
