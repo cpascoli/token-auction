@@ -11,7 +11,8 @@
     "gas-test": "npx hardhat test test/gas_tests/gas_tests",
     "doc": "npx hardhat docgen",
     "deploy_v1": "env $(cat .env) npx hardhat run --network goerli scripts/deploy_aucction_v1.ts",
-    "upgrade_v2": "env $(cat .env) npx hardhat run --network goerli scripts/upgrade_auction_v2.ts"
+    "upgrade_v2": "env $(cat .env) npx hardhat run --network goerli scripts/upgrade_auction_v2.ts",
+    "upgrade_v3": "env $(cat .env) npx hardhat run --network goerli scripts/upgrade_auction_v3.ts"
   },
   "author": "Carlo Pascoli",
   "license": "MIT",
